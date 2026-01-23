@@ -39,7 +39,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, isLoad
           </div>
         ) : (
           messages.map((message, index) => (
-            <div key={index} className={`flex flex-col gap-2 max-w-[80%] animate-[slideIn_0.3s_ease-out] ${message.role === 'user' ? 'self-end' : 'self-start'}`}>
+            <div key={index} className={`flex flex-col gap-2 max-w-[80%] animate-slideIn ${message.role === 'user' ? 'self-end' : 'self-start'}`}>
               <div className={`text-xs font-semibold text-gray-600 ${message.role === 'user' ? 'text-right' : ''}`}>
                 {message.role === 'user' ? 'You' : 'Assistant'}
               </div>
@@ -54,12 +54,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, isLoad
           ))
         )}
         {isLoading && (
-          <div className="flex flex-col gap-2 max-w-[80%] self-start animate-[slideIn_0.3s_ease-out]">
+          <div className="flex flex-col gap-2 max-w-[80%] self-start animate-slideIn">
             <div className="text-xs font-semibold text-gray-600">Assistant</div>
             <div className="px-4 py-3 rounded-xl bg-gray-100 text-gray-800 flex gap-1">
-              <span className="animate-[blink_1.4s_infinite]">.</span>
-              <span className="animate-[blink_1.4s_infinite_0.2s]">.</span>
-              <span className="animate-[blink_1.4s_infinite_0.4s]">.</span>
+              <span className="animate-blink">.</span>
+              <span className="animate-blink-delay-1">.</span>
+              <span className="animate-blink-delay-2">.</span>
             </div>
           </div>
         )}

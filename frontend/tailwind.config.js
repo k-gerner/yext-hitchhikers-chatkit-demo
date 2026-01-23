@@ -39,10 +39,11 @@ export default {
       animation: {
         slideIn: 'slideIn 0.3s ease-out',
         fadeIn: 'fadeIn 0.3s ease-out',
-        blink: 'blink 1.4s infinite'
+        blink: 'blink 1.4s infinite',
+        'blink-delay-1': 'blink 1.4s infinite 0.2s',
+        'blink-delay-2': 'blink 1.4s infinite 0.4s'
       }
     },
   },
   plugins: [],
 }
-

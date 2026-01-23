@@ -23,7 +23,7 @@ const ReferencesPanel: React.FC<ReferencesPanelProps> = ({ references }) => {
           references.map((reference) => (
             <div 
               key={reference.id} 
-              className="p-4 mb-3 bg-gray-50 rounded-lg border-l-4 border-emerald-600 transition-all hover:-translate-y-0.5 hover:shadow-md animate-[fadeIn_0.3s_ease-out]"
+              className="p-4 mb-3 bg-gray-50 rounded-lg border-l-4 border-emerald-600 transition-all hover:-translate-y-0.5 hover:shadow-md animate-fadeIn"
             >
               <div className="text-sm font-semibold text-gray-800 mb-2">
                 {reference.title}
