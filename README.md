@@ -1,40 +1,52 @@
 # ChatKit Testing
 
-Demo application using the OpenAI ChatKit SDK with a Python backend and TypeScript/React frontend.
+Demo application using the **OpenAI ChatKit SDK** with a Python backend and TypeScript/React frontend.
 
 ## Features
 
-- 💬 Real-time chat interface with OpenAI GPT-4
-- 📚 References panel showing sources used to generate responses
-- 🎨 Modern UI built with React and Tailwind CSS
-- 🐍 Python Flask backend with OpenAI SDK
-- 🔄 Easy to adapt to existing FileSearchTool vector store implementations
+- 💬 **OpenAI ChatKit SDK** - Uses the official ChatKit server and client libraries
+- 🚀 Real-time chat interface with streaming responses
+- 🎨 Modern UI using ChatKit's official React components
+- 🐍 Python FastAPI backend implementing ChatKit server protocol
+- 📦 Simple in-memory store (easily replaceable with database)
+- 🔄 Ready to integrate with FileSearchTool vector store
+
+## What is ChatKit?
+
+[ChatKit](https://platform.openai.com/docs/guides/chatkit) is OpenAI's SDK for building chat applications. It provides:
+
+- **Server SDK** (`openai-chatkit` for Python) - Protocol for handling chat requests
+- **Client SDK** (`@openai/chatkit-react` for React) - Pre-built UI components
+- **Streaming support** - Real-time message delivery
+- **Thread management** - Conversation history handling
+- **Widget system** - Interactive UI elements (custom components)
 
 ## Project Structure
 
 ```
 chat-kit-testing/
-├── backend/           # Python Flask server
-│   ├── app.py        # Main Flask application
-│   ├── requirements.txt
+├── backend/                      # Python FastAPI server
+│   ├── app_chatkit.py           # ChatKit server implementation
+│   ├── simple_store.py          # In-memory store implementation
+│   ├── app.py                   # OLD: Raw OpenAI API (deprecated)
+│   ├── app_mock.py              # OLD: Mock server (deprecated)
+│   ├── requirements.txt         # Python dependencies
 │   └── .env.example
-└── frontend/         # React TypeScript application
+└── frontend/                    # React TypeScript application
     ├── src/
-    │   ├── App.tsx              # Main app component
-    │   ├── ChatWindow.tsx       # Chat interface
-    │   ├── ReferencesPanel.tsx  # References display
-    │   ├── api.ts              # API client
-    │   └── types.ts            # TypeScript types
+    │   ├── App.tsx              # ChatKit React integration
+    │   ├── main.tsx             # React entry point
+    │   └── index.css            # Basic styles
     ├── package.json
     └── .env.example
 ```
 
 ## Prerequisites
 
-- Python 3.8 or higher
-- Node.js 16 or higher
-- npm or yarn
-- OpenAI API key
+- Python 3.10 or higher
+- Node.js 18.18 or higher
+- npm 9 or higher
+- OpenAI API key (optional - works in demo mode without one)
 
 ## Setup Instructions
 
@@ -65,33 +77,25 @@ chat-kit-testing/
    pip install -r requirements.txt
    ```
 
-5. **Set up environment variables:**
+5. **Set up environment variables (optional):**
    ```bash
    cp .env.example .env
    ```
    
-   Edit `.env` and add your OpenAI API key:
+   Edit `.env` to add your OpenAI API key (optional - demo works without it):
    ```
    OPENAI_API_KEY=sk-your-actual-api-key-here
    PORT=8000
-   FLASK_DEBUG=False  # Set to True only for local development
    ```
 
-6. **Run the backend server:**
-   
-   For testing without an API key (uses mock responses):
+6. **Run the ChatKit backend server:**
    ```bash
-   python app_mock.py
-   ```
-   
-   For production with OpenAI API:
-   ```bash
-   python app.py
+   python app_chatkit.py
    ```
    
    The server will start on `http://localhost:8000`
-   
-   **⚠️ Security Note:** Never set `FLASK_DEBUG=True` in production environments.
+   - ChatKit endpoint: `http://localhost:8000/chatkit`
+   - Health check: `http://localhost:8000/health`
 
 ### Frontend Setup
 
@@ -110,9 +114,10 @@ chat-kit-testing/
    cp .env.example .env
    ```
    
-   The default API URL is `http://localhost:8000`. Modify if needed:
+   The defaults work for local development:
    ```
-   VITE_API_URL=http://localhost:8000
+   VITE_API_URL=http://localhost:8000/chatkit
+   VITE_CHATKIT_API_DOMAIN_KEY=domain_pk_localhost_dev
    ```
 
 4. **Run the development server:**
@@ -124,131 +129,183 @@ chat-kit-testing/
 
 ## Usage
 
-1. Make sure both the backend and frontend servers are running
+1. Make sure both backend and frontend servers are running
 2. Open your browser to `http://localhost:3000`
-3. Start typing messages in the chat window
-4. View references in the panel on the right side
+3. Start chatting! The interface uses OpenAI's ChatKit UI components
+4. Try the suggested prompts or type your own messages
 
-## API Endpoints
+## ChatKit Protocol
 
-### Backend API
+This implementation follows the [ChatKit protocol specification](https://platform.openai.com/docs/guides/chatkit):
 
-- `GET /health` - Health check endpoint
-- `POST /chat` - Send chat messages and receive responses
+### Backend (Python)
 
-Example request to `/chat`:
-```json
-{
-  "messages": [
-    {"role": "user", "content": "Hello, how are you?"}
-  ]
-}
+The backend implements the `ChatKitServer` base class:
+
+```python
+from chatkit.server import ChatKitServer
+from chatkit.types import ThreadMetadata, ThreadStreamEvent, UserMessageItem
+
+class DemoChatKitServer(ChatKitServer):
+    async def respond(
+        self,
+        thread: ThreadMetadata,
+        input_user_message: UserMessageItem | None,
+        context: dict[str, Any],
+    ) -> AsyncIterator[ThreadStreamEvent]:
+        # Handle user messages and stream responses
+        ...
 ```
 
-Example response:
-```json
-{
-  "message": "I'm doing well, thank you! How can I help you today?",
-  "references": [
-    {
-      "id": "ref_1",
-      "title": "Product Documentation",
-      "snippet": "Overview of features...",
-      "source": "docs/overview.md"
-    }
-  ],
-  "usage": {
-    "prompt_tokens": 10,
-    "completion_tokens": 15,
-    "total_tokens": 25
-  }
-}
+### Frontend (React)
+
+The frontend uses the `@openai/chatkit-react` library:
+
+```typescript
+import { ChatKit, useChatKit } from "@openai/chatkit-react";
+
+const chatkit = useChatKit({
+  api: {
+    url: "http://localhost:8000/chatkit",
+    domainKey: "domain_pk_localhost_dev",
+  },
+  // ... configuration
+});
+
+return <ChatKit control={chatkit.control} />;
 ```
 
 ## Connecting to Your Existing Server
 
-The current backend uses sample references. To connect to your existing server with FileSearchTool:
+To integrate with your existing FileSearchTool server on port 9930:
 
-1. Modify `backend/app.py` to proxy requests to your server on port 9930
-2. Update the `/chat` endpoint to:
-   - Forward requests to your agent server
-   - Extract references from the FileSearchTool results
-   - Return the formatted response
+1. Update `backend/app_chatkit.py` in the `respond` method
+2. Replace the mock response with a call to your agent server:
 
-Example integration:
 ```python
-import requests
-
-@app.route('/chat', methods=['POST'])
-def chat():
-    data = request.get_json()
-    
-    # Forward to your existing server
-    response = requests.post(
-        'http://localhost:9930/agent/chat',
-        json=data
-    )
-    
-    result = response.json()
-    
-    # Extract references from FileSearchTool
-    references = extract_references(result)
-    
-    return jsonify({
-        "message": result['message'],
-        "references": references
-    })
+async def respond(self, thread, input_user_message, context):
+    # Forward to your existing agent server
+    import httpx
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:9930/agent/chat",
+            json={"messages": messages}
+        )
+        result = response.json()
+        
+        # Extract references from FileSearchTool
+        references = extract_references_from_agent(result)
+        
+        # Stream back to ChatKit
+        # ... yield ThreadStreamEvents
 ```
 
 ## Development
 
-### Frontend Development
-
-- Build for production: `npm run build`
-- Preview production build: `npm run preview`
-
 ### Backend Development
 
-The backend runs in debug mode by default. For production:
+The backend uses:
+- **FastAPI** - Modern Python web framework
+- **openai-chatkit** - ChatKit server SDK
+- **uvicorn** - ASGI server
 
-```python
-app.run(host='0.0.0.0', port=port, debug=False)
+To add features:
+- Implement custom `respond()` logic in `DemoChatKitServer`
+- Replace `SimpleStore` with a database-backed store
+- Add custom widgets using ChatKit's widget system
+
+### Frontend Development
+
+The frontend uses:
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **@openai/chatkit-react** - ChatKit UI components
+- **Vite** - Build tool
+
+Build for production:
+```bash
+npm run build
+npm run preview
 ```
+
+## Production Deployment
+
+### Domain Key Registration
+
+For production deployment:
+
+1. Register your domain at [platform.openai.com](https://platform.openai.com/settings/organization/security/domain-allowlist)
+2. Get your domain key
+3. Set `VITE_CHATKIT_API_DOMAIN_KEY` environment variable
+
+### Backend Deployment
+
+The backend can be deployed to any platform supporting Python:
+- AWS Lambda / ECS
+- Google Cloud Run
+- Azure App Service  
+- Heroku
+- Fly.io
+
+### Frontend Deployment
+
+The frontend can be deployed to any static hosting:
+- Vercel
+- Netlify
+- AWS S3 + CloudFront
+- GitHub Pages
 
 ## Technologies Used
 
 ### Backend
-- Flask - Web framework
-- Flask-CORS - Cross-origin resource sharing
-- OpenAI Python SDK - ChatKit integration
-- python-dotenv - Environment variable management
+- **openai-chatkit** - ChatKit server SDK
+- **FastAPI** - Web framework
+- **Uvicorn** - ASGI server
+- **python-dotenv** - Environment variables
 
 ### Frontend
-- React 18 - UI framework
-- TypeScript - Type safety
-- Vite - Build tool and dev server
-- Tailwind CSS - Utility-first CSS framework
+- **@openai/chatkit-react** - ChatKit UI components
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+
+## Limitations
+
+- **ChatKit frontend requires internet access** - The `@openai/chatkit-react` library loads from OpenAI's CDN
+- **Not suitable for air-gapped environments** - Requires access to `*.openai.com` domains
+- **Domain registration required for production** - Local development uses a default key
+
+For more details see:
+- [ChatKit Documentation](https://platform.openai.com/docs/guides/chatkit)
+- [chatkit-js GitHub Issues](https://github.com/openai/chatkit-js/issues)
 
 ## Troubleshooting
 
 ### Backend Issues
 
-- **ImportError: No module named 'flask'**
-  - Make sure you activated the virtual environment
-  - Run `pip install -r requirements.txt`
-
-- **OpenAI API Error**
-  - Check that your API key is correctly set in `.env`
-  - Verify you have API credits available
+- **Import errors**: Make sure virtual environment is activated and dependencies installed
+- **Port already in use**: Change the `PORT` in `.env`
+- **No API key**: The app works in demo mode without an OpenAI API key
 
 ### Frontend Issues
 
-- **Module not found errors**
-  - Delete `node_modules` and run `npm install` again
-  
-- **API connection errors**
-  - Verify the backend is running on port 8000
-  - Check CORS settings if accessing from different origin
+- **Module not found**: Delete `node_modules` and run `npm install`
+- **API connection errors**: Verify backend is running on port 8000
+- **ChatKit not loading**: Check internet connectivity (CDN access required)
+
+## Migration from Old Implementation
+
+The old implementation (using custom React components) is deprecated. The new implementation uses the official ChatKit SDK:
+
+**Old files (deprecated):**
+- `backend/app.py` - Raw Flask + OpenAI API
+- `backend/app_mock.py` - Mock implementation
+- `frontend/src/ChatWindow.tsx` - Custom component
+- `frontend/src/ReferencesPanel.tsx` - Custom component
+
+**New files (current):**
+- `backend/app_chatkit.py` - ChatKit SDK implementation
+- `frontend/src/App.tsx` - ChatKit React integration
 
 ## License
 
@@ -256,9 +313,9 @@ MIT
 
 ## Future Enhancements
 
-- [ ] User authentication
-- [ ] Conversation history persistence
-- [ ] File upload support for document search
-- [ ] Real-time streaming responses
-- [ ] Multiple conversation threads
-- [ ] Export chat history
+- [ ] Integrate with FileSearchTool agent on port 9930
+- [ ] Add authentication and user management
+- [ ] Implement persistent database store (SQLite/PostgreSQL)
+- [ ] Add custom widgets for references display
+- [ ] Support file attachments
+- [ ] Add conversation export feature

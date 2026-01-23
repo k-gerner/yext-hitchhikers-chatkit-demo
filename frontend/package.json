@@ -13,6 +13,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@openai/chatkit-react": "^1.4.3",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
     "react": "^19.2.3",
@@ -20,11 +21,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.18",
     "@vitejs/plugin-react": "^5.1.2",
-    "autoprefixer": "^10.4.23",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18",
     "vite": "^7.3.1"
   }
 }

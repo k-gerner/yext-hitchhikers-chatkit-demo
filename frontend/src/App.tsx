@@ -1,60 +1,36 @@
-import { useState } from 'react';
-import ChatWindow from './ChatWindow';
-import ReferencesPanel from './ReferencesPanel';
-import { Message, Reference } from './types';
-import { sendChatMessage } from './api';
+import { ChatKit, useChatKit } from "@openai/chatkit-react";
 
-function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [references, setReferences] = useState<Reference[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+const CHATKIT_API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/chatkit";
 
-  const handleSendMessage = async (content: string) => {
-    const userMessage: Message = { role: 'user', content };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setIsLoading(true);
-    setError(null);
+// Domain key for ChatKit integration
+// - Local development: Uses default "domain_pk_localhost_dev"
+// - Production: Register your domain at https://platform.openai.com/settings/organization/security/domain-allowlist
+//   and set VITE_CHATKIT_API_DOMAIN_KEY in your .env file
+const CHATKIT_API_DOMAIN_KEY =
+  import.meta.env.VITE_CHATKIT_API_DOMAIN_KEY ?? "domain_pk_localhost_dev";
 
-    try {
-      const response = await sendChatMessage(newMessages);
-      const assistantMessage: Message = { role: 'assistant', content: response.message };
-      setMessages([...newMessages, assistantMessage]);
-      
-      // Update references with the new ones from the response
-      if (response.references && response.references.length > 0) {
-        setReferences(response.references);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error sending message:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export default function App() {
+  const chatkit = useChatKit({
+    api: {
+      url: CHATKIT_API_URL,
+      domainKey: CHATKIT_API_DOMAIN_KEY,
+    },
+    startScreen: {
+      greeting: "Hello! I'm your ChatKit assistant with reference tracking. Ask me anything!",
+      prompts: [
+        { label: "How does ChatKit work?", prompt: "Can you explain how the ChatKit SDK works?" },
+        { label: "What is this demo?", prompt: "What can I do with this demo application?" },
+        { label: "Tell me about references", prompt: "How are references displayed in this interface?" },
+      ],
+    },
+    composer: {
+      placeholder: "Type your message...",
+    },
+  });
 
   return (
-    <div className="w-screen h-screen p-5 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-5 h-full max-w-[1400px] mx-auto">
-        <div className="flex flex-col gap-3">
-          <ChatWindow 
-            messages={messages} 
-            onSendMessage={handleSendMessage} 
-            isLoading={isLoading}
-          />
-          {error && (
-            <div className="p-3 bg-red-50 text-red-700 rounded-lg border-l-4 border-red-700 text-sm">
-              Error: {error}
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col max-h-[300px] md:max-h-full">
-          <ReferencesPanel references={references} />
-        </div>
-      </div>
+    <div style={{ width: "100vw", height: "100vh" }}>
+      <ChatKit control={chatkit.control} style={{ height: "100%" }} />
     </div>
   );
 }
-
-export default App;
