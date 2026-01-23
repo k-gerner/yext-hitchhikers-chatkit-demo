@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import ChatWindow from './ChatWindow';
 import ReferencesPanel from './ReferencesPanel';
 import { Message, Reference } from './types';
