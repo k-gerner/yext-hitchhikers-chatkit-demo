@@ -74,14 +74,24 @@ chat-kit-testing/
    ```
    OPENAI_API_KEY=sk-your-actual-api-key-here
    PORT=8000
+   FLASK_DEBUG=False  # Set to True only for local development
    ```
 
 6. **Run the backend server:**
+   
+   For testing without an API key (uses mock responses):
+   ```bash
+   python app_mock.py
+   ```
+   
+   For production with OpenAI API:
    ```bash
    python app.py
    ```
    
    The server will start on `http://localhost:8000`
+   
+   **⚠️ Security Note:** Never set `FLASK_DEBUG=True` in production environments.
 
 ### Frontend Setup
 

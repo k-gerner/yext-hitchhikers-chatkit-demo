@@ -100,11 +100,13 @@ def chat():
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     print("=" * 60)
     print("🚀 MOCK ChatKit Server Starting")
     print("=" * 60)
     print(f"📍 Server running on: http://localhost:{port}")
     print("⚠️  This is a MOCK server for testing")
     print("📝 Replace with app.py for real OpenAI integration")
+    print(f"🐛 Debug mode: {debug_mode}")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
