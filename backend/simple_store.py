@@ -23,38 +23,32 @@ class SimpleStore(Store[dict[str, Any]]):
         if thread.id not in self.thread_items:
             self.thread_items[thread.id] = []
 
-    async def load_thread(
-        self, thread_id: str, context: dict[str, Any]
-    ) -> ThreadMetadata | None:
-        """Load a thread by ID."""
-        return self.threads.get(thread_id)
+    async def load_thread(self, thread_id: str, context: dict[str, Any]) -> ThreadMetadata:
+        """Load a thread by ID, or raise if not found."""
+        thread = self.threads.get(thread_id)
+        if thread is None:
+            # You can define your own exception, or use a built-in one.
+            raise KeyError(f"Thread with id '{thread_id}' not found")
+        return thread
 
     async def load_threads(
         self,
-        after: str | None,
         limit: int,
+        after: str | None,
         order: str,
         context: dict[str, Any],
-    ) -> Page[Thread]:
+    ) -> Page[ThreadMetadata]:
         """Load a page of threads."""
         threads = list(self.threads.values())
         
         # Simple pagination
         if order == "desc":
-            threads.sort(key=lambda t: t.updated_at or t.created_at, reverse=True)
+            threads.sort(key=lambda t: t.created_at, reverse=True)
         else:
-            threads.sort(key=lambda t: t.updated_at or t.created_at)
-        
-        # Convert to Thread objects with item count
-        result_threads = [
-            Thread(
-                **thread.model_dump(),
-                item_count=len(self.thread_items.get(thread.id, []))
-            )
-            for thread in threads[:limit]
-        ]
-        
-        return Page(data=result_threads, has_more=len(threads) > limit)
+            threads.sort(key=lambda t: t.created_at)
+
+        paged_threads = threads[:limit]
+        return Page(data=paged_threads, has_more=len(threads) > limit)
 
     async def delete_thread(self, thread_id: str, context: dict[str, Any]) -> bool:
         """Delete a thread and all its items."""

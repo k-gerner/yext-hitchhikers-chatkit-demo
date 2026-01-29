@@ -6,15 +6,29 @@ using the OpenAI ChatKit SDK.
 """
 
 import os
+import json
 from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any
+import random
+from typing import Any, Dict
 
 import uvicorn
-from chatkit.server import ChatKitServer
-from chatkit.types import ThreadMetadata, ThreadStreamEvent, UserMessageItem
+from agents import Agent, FileSearchTool, Runner  # Agents SDK  [oai_citation:4‡OpenAI GitHub](https://openai.github.io/openai-agents-python/tools/)
+from chatkit.agents import AgentContext, simple_to_agent_input, stream_agent_response
+from chatkit.server import ChatKitServer, StreamingResult
+from chatkit.types import (
+  ThreadMetadata, 
+  ThreadStreamEvent, 
+  UserMessageItem, 
+  ThreadMetadata, 
+  UserMessageItem, 
+  AssistantMessageItem, 
+  AssistantMessageContent, 
+  ThreadItemDoneEvent,
+  ThreadStreamEvent
+)
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 
@@ -23,13 +37,30 @@ from simple_store import SimpleStore
 # Load environment variables
 load_dotenv()
 
+VECTOR_STORE_ID = "vs_68c3406b54148191b1bccebbc53ee263" # Hitchhikers
+# VECTOR_STORE_ID = "vs_696fe274d4e48191a041e24ea386b0bb" # Samsung
+agent = Agent(
+    name="RAG assistant",
+    instructions=(
+        "Answer using the provided documents when relevant. "
+        "Cite sources when you use them."
+    ),
+    tools=[
+        FileSearchTool(
+            vector_store_ids=[VECTOR_STORE_ID],
+            max_num_results=5,
+        )
+    ],
+)
 
-class DemoChatKitServer(ChatKitServer[dict[str, Any]]):
+
+class DemoChatKitServer(ChatKitServer[Dict[str, Any]]):
     """ChatKit server implementation."""
 
     def __init__(self, data_store: SimpleStore):
         # Initialize with no attachment store for simplicity
         super().__init__(data_store, attachment_store=None)
+
 
     async def respond(
         self,
@@ -38,40 +69,30 @@ class DemoChatKitServer(ChatKitServer[dict[str, Any]]):
         context: dict[str, Any],
     ) -> AsyncIterator[ThreadStreamEvent]:
         """Handle incoming user messages and generate responses."""
-        if input_user_message is None:
-            return
-
-        # Extract user message text
-        user_text = ""
-        if input_user_message.content:
-            for content_part in input_user_message.content:
-                if hasattr(content_part, "text"):
-                    user_text = content_part.text
-                    break
-
-        if not user_text:
-            return
-
-        # For now, return a simple mock response
-        # TODO: Integrate with OpenAI API or Agents SDK
-        from chatkit.types import (
-            AssistantMessageItem,
-            AssistantMessageTextContent,
-            ThreadItemDoneEvent,
+        # Run the agent *streamed* with full thread history
+        agent_ctx = AgentContext(
+            thread=thread,
+            store=self.store,
+            request_context=context,
         )
-        
-        item_id = self.store.generate_id("message")
-        response_text = f"I received your message: '{user_text[:100]}...'. This is using the OpenAI ChatKit SDK!"
-        
-        assistant_message = AssistantMessageItem(
-            id=item_id,
-            thread_id=thread.id,
-            created_at=datetime.now(),
-            role="assistant",
-            content=[AssistantMessageTextContent(type="text", text=response_text)],
+
+        items_page = await self.store.load_thread_items(
+            thread.id,
+            after=None,
+            limit=1000,
+            order="asc",
+            context=context,
         )
-        
-        yield ThreadItemDoneEvent(type="thread.item.done", item=assistant_message)
+        agent_input = await simple_to_agent_input(items_page.data)
+
+        result = Runner.run_streamed(agent, agent_input, context=agent_ctx)
+
+        # IMPORTANT: this converts Responses/Agents streaming events -> ChatKit ThreadStreamEvents
+        # and auto-attaches file/url citations as ChatKit annotations (Sources in UI).
+        async for ev in stream_agent_response(agent_ctx, result):
+            yield ev
+
+
 
 
 # Create FastAPI app
@@ -93,31 +114,19 @@ chatkit_server = DemoChatKitServer(data_store)
 
 @app.post("/chatkit")
 async def chatkit_endpoint(request: Request):
-    """ChatKit protocol endpoint."""
     body = await request.body()
-    context = {}  # You can add user context here
-    
+    context = {}
+
+    print("threads: ", chatkit_server.store.threads)
     result = await chatkit_server.process(body, context)
-    
-    # Check if it's streaming or non-streaming
-    if hasattr(result, 'stream'):
-        # Streaming response
-        async def event_stream():
-            async for event in result.stream:
-                # ChatKit uses Server-Sent Events format
-                yield f"data: {event}\n\n"
-        
-        return StreamingResponse(
-            event_stream(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            }
-        )
+
+    # STREAMING (SSE)
+    if  isinstance(result, StreamingResult):
+        return StreamingResponse(result, media_type="text/event-stream")
+
+    # NON-STREAMING
     else:
-        # Non-streaming response
-        return JSONResponse(content=result.response)
+        return Response(content=result.json, media_type="application/json")
 
 
 @app.get("/health")
