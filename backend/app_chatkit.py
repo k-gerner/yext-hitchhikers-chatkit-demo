@@ -42,13 +42,16 @@ VECTOR_STORE_ID = "vs_68c3406b54148191b1bccebbc53ee263" # Hitchhikers
 agent = Agent(
     name="RAG assistant",
     instructions=(
-        "Answer using the provided documents when relevant. "
-        "Cite sources when you use them."
+        "Only use information from the Knowledge Base. "
+        "If no answer is found, say 'I don't know' or similar. "
+        "In your response, do not mention the file store directly, just the references themselves. "
+        "Make sure to cite sources when you use them. "
+        "If the input is blank or just regular conversation, you can just greet/respond to the user in a friendly manner. "
     ),
     tools=[
         FileSearchTool(
             vector_store_ids=[VECTOR_STORE_ID],
-            max_num_results=5,
+            max_num_results=8,
         )
     ],
 )
