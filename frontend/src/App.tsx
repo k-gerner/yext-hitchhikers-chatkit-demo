@@ -331,6 +331,23 @@ export default function App() {
         prompt: 'What are custom phrases in Yext Search?'
       },
     ],
+    // prompts: [
+    //   {
+    //     icon: 'circle-question',
+    //     label: 'How can I contact support?',
+    //     prompt: 'How can I contact support?'
+    //   },
+    //   {
+    //     icon: 'circle-question',
+    //     label: 'Good phones for gaming',
+    //     prompt: 'What are good phones for gaming?'
+    //   },
+    //   {
+    //     icon: 'circle-question',
+    //     label: 'What is airplane mode?',
+    //     prompt: 'What is airplane mode?'
+    //   },
+    // ],
     },
     composer: {
       placeholder: "Type your message...",
