@@ -356,8 +356,8 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col w-screen h-screen p-5 bg-gray-50 box-border">
-      <div className="bg-gray-100 p-4 mb-5 rounded-lg font-mono text-sm border border-gray-300">
+    <div className="flex min-h-screen w-screen flex-col p-5 bg-gray-50 box-border">
+      <div className="bg-gray-100 p-4 mb-5 rounded-lg font-mono text-sm border border-gray-300 overflow-x-auto">
         <div className="font-bold mb-2">ChatKit Debug Info:</div>
         <div>API URL: <code className="bg-gray-200 px-1 rounded">{CHATKIT_API_URL}</code></div>
         <div>Domain Key: <code className="bg-gray-200 px-1 rounded">{CHATKIT_API_DOMAIN_KEY}</code></div>
@@ -376,24 +376,28 @@ export default function App() {
           onWidthChange={setChatWidth}
         />
         {chatkit?.control ? (
-          <div className="flex flex-1 items-center justify-center gap-6 px-6 pb-6">
-            {chatkit.control && (
-              <>
-                <ChatKit 
-                  control={chatkit.control}
-                  className={`h-[600px] ${chatWidthClass} shadow-xl rounded-3xl border-2 overflow-hidden`}
-                />
-                <ReferencesWidgetPanel
-                  colorScheme={colorScheme}
-                  activeThreadId={activeThreadId}
-                  isLoadingReferences={isLoadingReferences}
-                  referenceSources={referenceSources}
-                />
-                <div className="absolute bottom-2.5 right-2.5 bg-black/70 text-white px-2 py-1 rounded text-xs z-[1000]">
-                  ChatKit Container
-                </div>
-              </>
-            )}
+          <div className="flex-1">
+            <div className="flex flex-col items-center gap-6 px-6 pb-6 md:min-h-full md:flex-row md:items-center md:justify-center">
+              {chatkit.control && (
+                <>
+                  <ChatKit 
+                    control={chatkit.control}
+                    className={`h-[600px] ${chatWidthClass} shrink-0 shadow-xl rounded-3xl border-2 overflow-hidden`}
+                  />
+                  <div className="shrink-0">
+                    <ReferencesWidgetPanel
+                      colorScheme={colorScheme}
+                      activeThreadId={activeThreadId}
+                      isLoadingReferences={isLoadingReferences}
+                      referenceSources={referenceSources}
+                    />
+                  </div>
+                  <div className="absolute bottom-2.5 right-2.5 bg-black/70 text-white px-2 py-1 rounded text-xs z-[1000]">
+                    ChatKit Container
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-600 font-sans">
