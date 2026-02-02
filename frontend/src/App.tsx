@@ -12,9 +12,13 @@ type ReferenceSource = {
   kind: "url" | "file" | "entity" | "unknown";
 };
 
-function toPx(value?: number | string) {
+function toPx(value?: number | string | Widgets.Spacing) {
   if (value === undefined) return undefined;
-  return typeof value === "number" ? `${value}px` : value;
+  if (typeof value === "number" || typeof value === "string") {
+    return typeof value === "number" ? `${value}px` : value;
+  }
+  // currently doesn't handle Widgets.Spacing
+  return undefined;
 }
 
 function resolveThemeColor(
@@ -68,29 +72,29 @@ function WidgetRenderer({
         </div>
       );
     }
-    case "ListView": {
-      return (
-        <div
-          className={[
-            "flex flex-col divide-y",
-            colorScheme === "dark" ? "divide-slate-700" : "divide-gray-200",
-          ].join(" ")}
-        >
-          {node.children?.map((child, index) => (
-            <WidgetRenderer key={child.id ?? child.key ?? index} node={child} colorScheme={colorScheme} />
-          ))}
-        </div>
-      );
-    }
-    case "ListViewItem": {
-      return (
-        <div className="flex flex-col gap-1 py-2">
-          {node.children?.map((child, index) => (
-            <WidgetRenderer key={child.id ?? child.key ?? index} node={child} colorScheme={colorScheme} />
-          ))}
-        </div>
-      );
-    }
+    // case "ListView": {
+    //   return (
+    //     <div
+    //       className={[
+    //         "flex flex-col divide-y",
+    //         colorScheme === "dark" ? "divide-slate-700" : "divide-gray-200",
+    //       ].join(" ")}
+    //     >
+    //       {node.children?.map((child, index) => (
+    //         <WidgetRenderer key={child.id ?? child.key ?? index} node={child} colorScheme={colorScheme} />
+    //       ))}
+    //     </div>
+    //   );
+    // }
+    // case "ListViewItem": {
+    //   return (
+    //     <div className="flex flex-col gap-1 py-2">
+    //       {node.children?.map((child, index) => (
+    //         <WidgetRenderer key={child.id ?? child.key ?? index} node={child} colorScheme={colorScheme} />
+    //       ))}
+    //     </div>
+    //   );
+    // }
     case "Box":
     case "Row":
     case "Col": {
