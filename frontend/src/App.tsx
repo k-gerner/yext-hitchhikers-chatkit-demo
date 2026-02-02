@@ -1,5 +1,4 @@
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
-import type { Widgets } from "@openai/chatkit";
 import { useCallback, useEffect, useState } from "react";
 
 const CHATKIT_API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/chatkit";
