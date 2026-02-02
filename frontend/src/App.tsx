@@ -168,18 +168,22 @@ type SettingsPanelProps = {
   colorScheme: "light" | "dark";
   radius: "pill" | "round" | "soft" | "sharp";
   density: "compact" | "normal" | "spacious";
+  width: "360px" | "540px" | "720px";
   onColorSchemeChange: (value: "light" | "dark") => void;
   onRadiusChange: (value: "pill" | "round" | "soft" | "sharp") => void;
   onDensityChange: (value: "compact" | "normal" | "spacious") => void;
+  onWidthChange: (value: "360px" | "540px" | "720px") => void;
 };
 
 function SettingsPanel({
   colorScheme,
   radius,
   density,
+  width,
   onColorSchemeChange,
   onRadiusChange,
   onDensityChange,
+  onWidthChange,
 }: SettingsPanelProps) {
   return (
     <div className="mb-3 flex flex-wrap gap-4 font-sans text-md">
@@ -219,6 +223,18 @@ function SettingsPanel({
           <option value="spacious">spacious</option>
         </select>
       </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-gray-700">Chat width</span>
+        <select
+          className="rounded border border-gray-300 bg-white px-2 py-1"
+          value={width}
+          onChange={(e) => onWidthChange(e.target.value as "360px" | "540px" | "720px")}
+        >
+          <option value="360px">360px</option>
+          <option value="540px">540px</option>
+          <option value="720px">720px</option>
+        </select>
+      </label>
     </div>
   );
 }
@@ -228,6 +244,7 @@ export default function App() {
   const [colorScheme, setColorScheme] = useState<"light" | "dark">("light");
   const [radius, setRadius] = useState<"pill" | "round" | "soft" | "sharp">("round");
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
+  const [chatWidth, setChatWidth] = useState<"360px" | "540px" | "720px">("360px");
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [referenceSources, setReferenceSources] = useState<ReferenceSource[]>([]);
   const [isLoadingReferences, setIsLoadingReferences] = useState(false);
@@ -317,41 +334,41 @@ export default function App() {
     onLog: (e) => console.log("ChatKit log:", e.name, e.data),
     onEffect: (e) => console.log("ChatKit effect:", e.name, e.data),
     startScreen: {
-      greeting: "Hello! I'm your ChatKit assistant. Ask me anything broski!",
-      prompts: [
-      {
-        icon: 'circle-question',
-        label: 'What is Yext Search?',
-        prompt: 'What is Yext Search?'
-      },
-      {
-        icon: 'circle-question',
-        label: 'Help me with a Search Frontend',
-        prompt: 'How can I set up a new Search Frontend?'
-      },
-      {
-        icon: 'circle-question',
-        label: 'What are custom phrases?',
-        prompt: 'What are custom phrases in Yext Search?'
-      },
-    ],
-    // prompts: [
+      greeting: "Hello! I'm your ChatKit assistant. Ask me anything!",
+    //   prompts: [
     //   {
     //     icon: 'circle-question',
-    //     label: 'How can I contact support?',
-    //     prompt: 'How can I contact support?'
+    //     label: 'What is Yext Search?',
+    //     prompt: 'What is Yext Search?'
     //   },
     //   {
     //     icon: 'circle-question',
-    //     label: 'Good phones for gaming',
-    //     prompt: 'What are good phones for gaming?'
+    //     label: 'Help me with a Search Frontend',
+    //     prompt: 'How can I set up a new Search Frontend?'
     //   },
     //   {
     //     icon: 'circle-question',
-    //     label: 'What is airplane mode?',
-    //     prompt: 'What is airplane mode?'
+    //     label: 'What are custom phrases?',
+    //     prompt: 'What are custom phrases in Yext Search?'
     //   },
     // ],
+    prompts: [
+      {
+        icon: 'circle-question',
+        label: 'How can I contact support?',
+        prompt: 'How can I contact support?'
+      },
+      {
+        icon: 'circle-question',
+        label: 'Good phones for gaming',
+        prompt: 'What are good phones for gaming?'
+      },
+      {
+        icon: 'circle-question',
+        label: 'What is airplane mode?',
+        prompt: 'What is airplane mode?'
+      },
+    ],
     },
     composer: {
       placeholder: "Type your message...",
@@ -365,6 +382,13 @@ export default function App() {
   useEffect(() => {
     void fetchLatestReferences();
   }, [fetchLatestReferences]);
+
+  const chatWidthClass =
+    chatWidth === "720px"
+      ? "w-[720px]"
+      : chatWidth === "540px"
+        ? "w-[540px]"
+        : "w-[360px]";
 
   const referencesWidget = useMemo<Widgets.BasicRoot>(() => {
     const children: Widgets.WidgetComponent[] = [
@@ -431,9 +455,11 @@ export default function App() {
           colorScheme={colorScheme}
           radius={radius}
           density={density}
+          width={chatWidth}
           onColorSchemeChange={setColorScheme}
           onRadiusChange={setRadius}
           onDensityChange={setDensity}
+          onWidthChange={setChatWidth}
         />
         {chatkit?.control ? (
           <div className="flex flex-1 items-center justify-center gap-6 px-6 pb-6">
@@ -441,8 +467,7 @@ export default function App() {
               <>
                 <ChatKit 
                   control={chatkit.control}
-                  className="h-[600px] w-[360px] shadow-xl rounded-3xl border-2 overflow-hidden"
-                  key={`${colorScheme}-${radius}-${density}`} // Force re-render on theme change
+                  className={`h-[600px] ${chatWidthClass} shadow-xl rounded-3xl border-2 overflow-hidden`}
                 />
                 <ReferencesWidgetPanel
                   colorScheme={colorScheme}
