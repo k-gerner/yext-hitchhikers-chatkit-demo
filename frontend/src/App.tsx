@@ -1,4 +1,5 @@
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
+import { CgFileDocument } from "react-icons/cg";
 import { useCallback, useEffect, useState } from "react";
 
 const CHATKIT_API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/chatkit";
@@ -80,12 +81,25 @@ function ReferencesWidgetPanel({
                 ].join(" ");
                 return (
                   <div key={source.key} className={cardClasses}>
-                    <div className="min-w-0">
-                      <div className={`text-md font-semibold ${colorScheme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
-                        {source.title}
+                    <div className="flex min-w-0 items-start gap-2">
+                      <div
+                        className={[
+                          "mt-0.5 flex h-7 w-7 items-center justify-center rounded-md border",
+                          colorScheme === "dark"
+                            ? "border-slate-700 bg-slate-800 text-slate-200"
+                            : "border-slate-200 bg-white text-slate-600",
+                        ].join(" ")}
+                        aria-hidden="true"
+                      >
+                        <CgFileDocument className="h-4 w-4" />
                       </div>
-                      <div className={`text-sm ${colorScheme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                        {source.subtitle ?? source.kind.toUpperCase()}
+                      <div className="min-w-0">
+                        <div className={`text-md font-semibold ${colorScheme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
+                          {source.title}
+                        </div>
+                        <div className={`text-sm ${colorScheme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                          {source.subtitle ?? source.kind.toUpperCase()}
+                        </div>
                       </div>
                     </div>
                     <button
