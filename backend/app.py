@@ -144,92 +144,92 @@ async def chatkit_endpoint(request: Request):
     # NON-STREAMING
     else:
         return Response(content=result.json, media_type="application/json")
-    
-
-@app.post("/chatkit/session")
-async def chatkit_session():
-    session = chatkit_server.create_session(
-        # 👇 THIS is the critical part
-        api_url="https://your-python-api.example.com/chatkit"
-    )
-
-    return {
-        "client_secret": session.client_secret
-    }
 
 
-@app.post("/api/chatkit_session")
-async def create_chatkit_session(request: Request):
-    # Optional: get the frontend's allowed origin
-    origin = request.headers.get("origin")
-    cors_headers = {"Access-Control-Allow-Origin": origin or "*"}
+# @app.post("/chatkit/session")
+# async def chatkit_session():
+#     session = chatkit_server.create_session(
+#         # 👇 THIS is the critical part
+#         api_url="https://your-python-api.example.com/chatkit"
+#     )
 
-    try:
-        payload = await request.json()
-    except Exception:
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Invalid JSON body"},
-            headers=cors_headers,
-        )
-    workflow_id = payload.get("workflowId") or payload.get("workflow_id")
-    if not workflow_id:
-        return JSONResponse(
-            status_code=400,
-            content={"message": "Missing workflowId"},
-            headers=cors_headers,
-        )
+#     return {
+#         "client_secret": session.client_secret
+#     }
 
-    # Optionally, associate the session with a user ID
-    user_id = str(uuid.uuid4())
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    if not openai_api_key:
-        return JSONResponse(
-            status_code=500,
-            content={"message": "Missing OPENAI_API_KEY"},
-            headers=cors_headers,
-        )
 
-    url = "https://api.openai.com/v1/chatkit/sessions"
-    session_payload = {
-        "workflow": {"id": workflow_id},
-        "user": user_id,
-        "chatkit_configuration": { "file_upload": { "enabled": True } }
-    }
+# @app.post("/api/chatkit_session")
+# async def create_chatkit_session(request: Request):
+#     # Optional: get the frontend's allowed origin
+#     origin = request.headers.get("origin")
+#     cors_headers = {"Access-Control-Allow-Origin": origin or "*"}
 
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            upstream_response = await client.post(
-                url,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {openai_api_key}",
-                    "OpenAI-Beta": "chatkit_beta=v1",
-                },
-                json=session_payload,
-            )
-    except httpx.HTTPError as exc:
-        LOGGER.exception("Failed to create ChatKit session")
-        return JSONResponse(
-            status_code=502,
-            content={"message": "Failed to reach ChatKit API", "details": str(exc)},
-            headers=cors_headers,
-        )
+#     try:
+#         payload = await request.json()
+#     except Exception:
+#         return JSONResponse(
+#             status_code=400,
+#             content={"message": "Invalid JSON body"},
+#             headers=cors_headers,
+#         )
+#     workflow_id = payload.get("workflowId") or payload.get("workflow_id")
+#     if not workflow_id:
+#         return JSONResponse(
+#             status_code=400,
+#             content={"message": "Missing workflowId"},
+#             headers=cors_headers,
+#         )
 
-    upstream_json = upstream_response.json()
-    if upstream_response.is_error:
-        return JSONResponse(
-            status_code=upstream_response.status_code,
-            content={"message": "Failed to create session", "details": upstream_json},
-            headers=cors_headers,
-        )
+#     # Optionally, associate the session with a user ID
+#     user_id = str(uuid.uuid4())
+#     openai_api_key = os.getenv("OPENAI_API_KEY")
+#     if not openai_api_key:
+#         return JSONResponse(
+#             status_code=500,
+#             content={"message": "Missing OPENAI_API_KEY"},
+#             headers=cors_headers,
+#         )
 
-    client_secret = upstream_json.get("client_secret")
-    return JSONResponse(
-        status_code=200,
-        content={"clientSecret": client_secret},
-        headers=cors_headers,
-    )
+#     url = "https://api.openai.com/v1/chatkit/sessions"
+#     session_payload = {
+#         "workflow": {"id": workflow_id},
+#         "user": user_id,
+#         "chatkit_configuration": { "file_upload": { "enabled": True } }
+#     }
+
+#     try:
+#         async with httpx.AsyncClient(timeout=10.0) as client:
+#             upstream_response = await client.post(
+#                 url,
+#                 headers={
+#                     "Content-Type": "application/json",
+#                     "Authorization": f"Bearer {openai_api_key}",
+#                     "OpenAI-Beta": "chatkit_beta=v1",
+#                 },
+#                 json=session_payload,
+#             )
+#     except httpx.HTTPError as exc:
+#         LOGGER.exception("Failed to create ChatKit session")
+#         return JSONResponse(
+#             status_code=502,
+#             content={"message": "Failed to reach ChatKit API", "details": str(exc)},
+#             headers=cors_headers,
+#         )
+
+#     upstream_json = upstream_response.json()
+#     if upstream_response.is_error:
+#         return JSONResponse(
+#             status_code=upstream_response.status_code,
+#             content={"message": "Failed to create session", "details": upstream_json},
+#             headers=cors_headers,
+#         )
+
+#     client_secret = upstream_json.get("client_secret")
+#     return JSONResponse(
+#         status_code=200,
+#         content={"clientSecret": client_secret},
+#         headers=cors_headers,
+#     )
 
 
 @app.get("/health")
