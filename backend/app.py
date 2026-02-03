@@ -17,7 +17,8 @@ import logging
 from typing import Any, Dict
 
 import uvicorn
-from agents import Agent, FileSearchTool, Runner  # Agents SDK  [oai_citation:4‡OpenAI GitHub](https://openai.github.io/openai-agents-python/tools/)
+from openai.types.shared import Reasoning
+from agents import Agent, FileSearchTool, Runner, ModelSettings  # Agents SDK  [oai_citation:4‡OpenAI GitHub](https://openai.github.io/openai-agents-python/tools/)
 from chatkit.agents import AgentContext, simple_to_agent_input, stream_agent_response
 from chatkit.server import ChatKitServer, StreamingResult
 from chatkit.types import (
@@ -43,22 +44,55 @@ load_dotenv()
 
 # VECTOR_STORE_ID = "vs_68c3406b54148191b1bccebbc53ee263" # Hitchhikers
 VECTOR_STORE_ID = "vs_696fe274d4e48191a041e24ea386b0bb" # Samsung
-agent = Agent(
-    name="RAG assistant",
-    instructions=(
-        "Only use information from the Knowledge Base. "
-        "If no answer is found, say 'I don't know' or similar. "
-        "In your response, do not mention the file store directly, just the references themselves. "
-        "Make sure to cite sources when you use them. "
-        "If the input is blank or just regular conversation, you can just greet/respond to the user in a friendly manner. "
-    ),
-    tools=[
-        FileSearchTool(
-            vector_store_ids=[VECTOR_STORE_ID],
-            max_num_results=8,
+DEFAULT_MODEL = "gpt-5-mini"
+DEFAULT_VERBOSITY = "low"
+ALLOWED_MODELS = {"gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-4.1"}
+ALLOWED_VERBOSITY = {"low", "medium", "high"}
+
+
+def build_agent(model: str, verbosity: str) -> Agent:
+    if model.startswith("gpt-4"):
+        return Agent(
+            name="RAG assistant",
+            instructions=(
+                "Only use information from the Knowledge Base. "
+                "If no answer is found, say 'I don't know' or similar. "
+                "In your response, do not mention the file store directly, just the references themselves. "
+                "Make sure to cite sources when you use them. "
+                "If the input is blank or just regular conversation, you can just greet/respond to the user in a friendly manner. "
+                "Use list formatting where appropriate."
+            ),
+            tools=[
+                FileSearchTool(
+                    vector_store_ids=[VECTOR_STORE_ID],
+                    max_num_results=8,
+                )
+            ],
+            model=model
         )
-    ],
-)
+    else:
+        return Agent(
+            name="RAG assistant",
+            instructions=(
+                "Only use information from the Knowledge Base. "
+                "If no answer is found, say 'I don't know' or similar. "
+                "In your response, do not mention the file store directly, just the references themselves. "
+                "Make sure to cite sources when you use them. "
+                "If the input is blank or just regular conversation, you can just greet/respond to the user in a friendly manner. "
+                "Use list formatting where appropriate."
+            ),
+            tools=[
+                FileSearchTool(
+                    vector_store_ids=[VECTOR_STORE_ID],
+                    max_num_results=8,
+                )
+            ],
+            model=model,
+            model_settings=ModelSettings(
+                reasoning=Reasoning(effort="low"),
+                verbosity=verbosity
+            )
+        )
 
 LOG_FORMAT = "%(asctime)s %(message)s"
 logging.basicConfig(
@@ -102,7 +136,11 @@ class DemoChatKitServer(ChatKitServer[Dict[str, Any]]):
         )
         agent_input = await simple_to_agent_input(items_page.data)
 
-        result = Runner.run_streamed(agent, agent_input, context=agent_ctx)
+        model = context.get("model", DEFAULT_MODEL)
+        verbosity = context.get("verbosity", DEFAULT_VERBOSITY)
+        request_agent = build_agent(model, verbosity)
+        result = Runner.run_streamed(request_agent, agent_input, context=agent_ctx)
+        print(f"Running agent with model={model} and verbosity={verbosity}")
 
         # IMPORTANT: this converts Responses/Agents streaming events -> ChatKit ThreadStreamEvents
         # and auto-attaches file/url citations as ChatKit annotations (Sources in UI).
@@ -132,7 +170,49 @@ chatkit_server = DemoChatKitServer(data_store)
 @app.post("/chatkit")
 async def chatkit_endpoint(request: Request):
     body = await request.body()
-    context = {}
+    raw_model = request.headers.get("x-chatkit-model")
+    raw_verbosity = request.headers.get("x-chatkit-verbosity")
+
+    model = raw_model or DEFAULT_MODEL
+    verbosity = raw_verbosity or DEFAULT_VERBOSITY
+
+    if raw_model is not None and raw_model.strip() == "":
+        return JSONResponse(
+            status_code=400,
+            content={
+                "message": "X-ChatKit-Model header cannot be empty.",
+                "allowed_models": sorted(ALLOWED_MODELS),
+            },
+        )
+
+    if raw_model is not None and model not in ALLOWED_MODELS:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "message": "Invalid X-ChatKit-Model header.",
+                "allowed_models": sorted(ALLOWED_MODELS),
+            },
+        )
+
+    if raw_verbosity is not None and raw_verbosity.strip() == "":
+        return JSONResponse(
+            status_code=400,
+            content={
+                "message": "X-ChatKit-Verbosity header cannot be empty.",
+                "allowed_verbosity": sorted(ALLOWED_VERBOSITY),
+            },
+        )
+
+    if raw_verbosity is not None and verbosity not in ALLOWED_VERBOSITY:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "message": "Invalid X-ChatKit-Verbosity header.",
+                "allowed_verbosity": sorted(ALLOWED_VERBOSITY),
+            },
+        )
+
+    context = {"model": model, "verbosity": verbosity}
 
     print("threads: ", chatkit_server.store.threads)
     result = await chatkit_server.process(body, context)

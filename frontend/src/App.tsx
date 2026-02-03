@@ -123,10 +123,14 @@ type SettingsPanelProps = {
   radius: "pill" | "round" | "soft" | "sharp";
   density: "compact" | "normal" | "spacious";
   width: "360px" | "540px" | "720px";
+  model: "gpt-5-mini" | "gpt-5" | "gpt-5-nano" | "gpt-4.1";
+  verbosity: "low" | "medium" | "high";
   onColorSchemeChange: (value: "light" | "dark") => void;
   onRadiusChange: (value: "pill" | "round" | "soft" | "sharp") => void;
   onDensityChange: (value: "compact" | "normal" | "spacious") => void;
   onWidthChange: (value: "360px" | "540px" | "720px") => void;
+  onModelChange: (value: "gpt-5-mini" | "gpt-5" | "gpt-5-nano" | "gpt-4.1") => void;
+  onVerbosityChange: (value: "low" | "medium" | "high") => void;
 };
 
 function SettingsPanel({
@@ -134,10 +138,14 @@ function SettingsPanel({
   radius,
   density,
   width,
+  model,
+  verbosity,
   onColorSchemeChange,
   onRadiusChange,
   onDensityChange,
   onWidthChange,
+  onModelChange,
+  onVerbosityChange,
 }: SettingsPanelProps) {
   return (
     <div className="mb-3 flex flex-wrap gap-4 font-sans text-md">
@@ -189,6 +197,38 @@ function SettingsPanel({
           <option value="720px">720px</option>
         </select>
       </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-gray-700">Model</span>
+        <select
+          className="rounded border border-gray-300 bg-white px-2 py-1"
+          value={model}
+          onChange={(e) =>
+            onModelChange(e.target.value as "gpt-5-mini" | "gpt-5" | "gpt-5-nano" | "gpt-4.1")
+          }
+        >
+          <option value="gpt-5-mini">gpt-5-mini</option>
+          <option value="gpt-5">gpt-5</option>
+          <option value="gpt-5-nano">gpt-5-nano</option>
+          <option value="gpt-4.1">gpt-4.1</option>
+        </select>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-gray-700">Verbosity</span>
+        <select
+          className={`rounded border px-2 py-1 ${
+            model === "gpt-4.1"
+              ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "border-gray-300 bg-white"
+          }`}
+          value={verbosity}
+          onChange={(e) => onVerbosityChange(e.target.value as "low" | "medium" | "high")}
+          disabled={model === "gpt-4.1"}
+        >
+          <option value="low">low</option>
+          <option value="medium">medium</option>
+          <option value="high">high</option>
+        </select>
+      </label>
     </div>
   );
 }
@@ -199,6 +239,8 @@ export default function App() {
   const [radius, setRadius] = useState<"pill" | "round" | "soft" | "sharp">("round");
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
   const [chatWidth, setChatWidth] = useState<"360px" | "540px" | "720px">("360px");
+  const [model, setModel] = useState<"gpt-5-mini" | "gpt-5" | "gpt-5-nano" | "gpt-4.1">("gpt-4.1");
+  const [verbosity, setVerbosity] = useState<"low" | "medium" | "high">("low");
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [referenceSources, setReferenceSources] = useState<ReferenceSource[]>([]);
   const [isLoadingReferences, setIsLoadingReferences] = useState(false);
@@ -273,6 +315,12 @@ export default function App() {
     api: {
       url: CHATKIT_API_URL,
       domainKey: CHATKIT_API_DOMAIN_KEY,
+      fetch: (url, options) => {
+        const headers = new Headers(options?.headers ?? {});
+        headers.set("X-ChatKit-Model", model);
+        headers.set("X-ChatKit-Verbosity", verbosity);
+        return fetch(url, { ...options, headers });
+      },
     },
     initialThread: activeThreadId,
     theme: {
@@ -374,10 +422,14 @@ export default function App() {
           radius={radius}
           density={density}
           width={chatWidth}
+          model={model}
+          verbosity={verbosity}
           onColorSchemeChange={setColorScheme}
           onRadiusChange={setRadius}
           onDensityChange={setDensity}
           onWidthChange={setChatWidth}
+          onModelChange={setModel}
+          onVerbosityChange={setVerbosity}
         />
         {chatkit?.control ? (
           <div className="flex-1">
