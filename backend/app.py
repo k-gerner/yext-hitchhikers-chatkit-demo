@@ -51,6 +51,7 @@ agent = Agent(
         "In your response, do not mention the file store directly, just the references themselves. "
         "Make sure to cite sources when you use them. "
         "If the input is blank or just regular conversation, you can just greet/respond to the user in a friendly manner. "
+        "Use list formatting when appropriate."
     ),
     tools=[
         FileSearchTool(
