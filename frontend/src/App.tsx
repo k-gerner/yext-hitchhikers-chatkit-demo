@@ -75,9 +75,7 @@ function ReferencesWidgetPanel({
                 ].join(" ");
                 const visitClasses = [
                   "shrink-0 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide cursor-pointer",
-                  colorScheme === "dark"
-                    ? "bg-slate-200 text-slate-900 hover:bg-white"
-                    : "bg-slate-900 text-white hover:bg-slate-800",
+                  "bg-[#0689D8] text-white hover:bg-[#0579C0]",
                 ].join(" ");
                 return (
                   <div key={source.key} className={cardClasses}>
@@ -278,6 +276,12 @@ export default function App() {
     },
     initialThread: activeThreadId,
     theme: {
+      color: {
+        accent: {
+          primary: '#0689D8',
+          level: 1
+        }
+      },
       colorScheme, // Alternatives: "light", "dark"
       radius,   // Alternatives: "pill", "round", "soft", "sharp"
       density // Alternatives: "compact", "normal", "spacious"
@@ -291,7 +295,7 @@ export default function App() {
     onLog: (e) => console.log("ChatKit log:", e.name, e.data),
     onEffect: (e) => console.log("ChatKit effect:", e.name, e.data),
     startScreen: {
-      greeting: "Hello! I'm your ChatKit assistant. Ask me anything!",
+      greeting: "Welcome to Samsung Support. How can I help you today?",
     //   prompts: [
     //   {
     //     icon: 'circle-question',
