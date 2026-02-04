@@ -17,17 +17,25 @@ import logging
 from typing import Any, Dict
 
 import uvicorn
-from agents import Agent, FileSearchTool, Runner  # Agents SDK  [oai_citation:4‡OpenAI GitHub](https://openai.github.io/openai-agents-python/tools/)
+from agents import (
+    Agent,
+    FileSearchTool,
+    GuardrailFunctionOutput,
+    input_guardrail,
+    InputGuardrailTripwireTriggered,
+    Runner
+)
+from pydantic import BaseModel
 from chatkit.agents import AgentContext, simple_to_agent_input, stream_agent_response
 from chatkit.server import ChatKitServer, StreamingResult
 from chatkit.types import (
-  ThreadMetadata, 
-  ThreadStreamEvent, 
-  UserMessageItem, 
-  ThreadMetadata, 
-  UserMessageItem, 
-  AssistantMessageItem, 
-  AssistantMessageContent, 
+  ThreadMetadata,
+  ThreadStreamEvent,
+  UserMessageItem,
+  ThreadMetadata,
+  UserMessageItem,
+  AssistantMessageItem,
+  AssistantMessageContent,
   ThreadItemDoneEvent,
   ThreadStreamEvent
 )
@@ -43,7 +51,33 @@ load_dotenv()
 
 # VECTOR_STORE_ID = "vs_68c3406b54148191b1bccebbc53ee263" # Hitchhikers
 VECTOR_STORE_ID = "vs_696fe274d4e48191a041e24ea386b0bb" # Samsung
-agent = Agent(
+
+class RelevancyCheck(BaseModel):
+    is_relevant: bool
+    reasoning: str
+
+guardrail_agent= Agent(
+    name="Query Relevance Guard",
+    instructions=(
+        "Determine if the query is relevant to customer support, technology product questions, general technology troubleshooting, or the capabilities of the agent. "
+        "Return is_relevant=False if the query is not related to these topics."
+    ),
+    output_type=RelevancyCheck
+)
+
+@input_guardrail(run_in_parallel=False) # ensures that it finishes before streaming starts
+async def relevancy_guard(ctx, agent, input_data):
+    result = await Runner.run(guardrail_agent, input_data, context=ctx)
+    analysis: RelevancyCheck = result.final_output
+    print(f"Relevancy check: is_relevant={analysis.is_relevant}, reasoning={analysis.reasoning}")
+
+    return GuardrailFunctionOutput(
+        tripwire_triggered=not analysis.is_relevant,
+        output_info=analysis.reasoning
+    )
+
+
+rag_agent = Agent(
     name="RAG assistant",
     instructions=(
         "Only use information from the Knowledge Base. "
@@ -59,6 +93,7 @@ agent = Agent(
             max_num_results=8,
         )
     ],
+    input_guardrails=[relevancy_guard]
 )
 
 LOG_FORMAT = "%(asctime)s %(message)s"
@@ -103,12 +138,33 @@ class DemoChatKitServer(ChatKitServer[Dict[str, Any]]):
         )
         agent_input = await simple_to_agent_input(items_page.data)
 
-        result = Runner.run_streamed(agent, agent_input, context=agent_ctx)
+        try:
+            result = Runner.run_streamed(rag_agent, agent_input, context=agent_ctx)
 
-        # IMPORTANT: this converts Responses/Agents streaming events -> ChatKit ThreadStreamEvents
-        # and auto-attaches file/url citations as ChatKit annotations (Sources in UI).
-        async for ev in stream_agent_response(agent_ctx, result):
-            yield ev
+            # IMPORTANT: this converts Responses/Agents streaming events -> ChatKit ThreadStreamEvents
+            # and auto-attaches file/url citations as ChatKit annotations (Sources in UI).
+            async for ev in stream_agent_response(agent_ctx, result):
+                yield ev
+        except InputGuardrailTripwireTriggered as exc:
+            output_info = exc.guardrail_result.output.output_info
+            # message_text = (
+            #     output_info
+            #     if isinstance(output_info, str) and output_info.strip()
+            #     else "Sorry, this falls outside of the scope I am able to assist with."
+            # )
+            message_text = "Sorry, this falls outside of the scope I am able to assist with."
+            message = AssistantMessageItem(
+                id=self.store.generate_item_id("message", thread, context),
+                thread_id=thread.id,
+                created_at=datetime.now(),
+                content=[
+                    AssistantMessageContent(
+                        text=message_text,
+                        annotations=[],
+                    )
+                ],
+            )
+            yield ThreadItemDoneEvent(item=message)
 
 
 
