@@ -49,8 +49,8 @@ from simple_store import SimpleStore
 # Load environment variables
 load_dotenv()
 
-# VECTOR_STORE_ID = "vs_68c3406b54148191b1bccebbc53ee263" # Hitchhikers
-VECTOR_STORE_ID = "vs_696fe274d4e48191a041e24ea386b0bb" # Samsung
+VECTOR_STORE_ID = "vs_68c3406b54148191b1bccebbc53ee263" # Hitchhikers
+# VECTOR_STORE_ID = "vs_696fe274d4e48191a041e24ea386b0bb" # Samsung
 
 class RelevancyCheck(BaseModel):
     is_relevant: bool
@@ -59,9 +59,13 @@ class RelevancyCheck(BaseModel):
 guardrail_agent= Agent(
     name="Query Relevance Guard",
     instructions=(
-        "Determine if the query is relevant to customer support, technology product questions, general technology troubleshooting, or the capabilities of the agent. "
+        "Determine if the query is relevant to Yext services, technology product questions, general technology troubleshooting, or the capabilities of the agent. "
         "Return is_relevant=False if the query is not related to these topics."
     ),
+    # instructions=(
+    #     "Determine if the query is relevant to customer support, technology product questions, general technology troubleshooting, or the capabilities of the agent. "
+    #     "Return is_relevant=False if the query is not related to these topics."
+    # ),
     output_type=RelevancyCheck
 )
 
