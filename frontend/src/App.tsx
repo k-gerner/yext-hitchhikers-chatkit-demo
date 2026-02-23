@@ -20,11 +20,13 @@ function openReferencePage(filename: string) {
 
 function ReferencesWidgetPanel({
   colorScheme,
+  accentColor,
   activeThreadId,
   isLoadingReferences,
   referenceSources,
 }: {
   colorScheme: "light" | "dark";
+  accentColor: string;
   activeThreadId: string | null;
   isLoadingReferences: boolean;
   referenceSources: ReferenceSource[];
@@ -71,7 +73,7 @@ function ReferencesWidgetPanel({
                 ].join(" ");
                 const visitClasses = [
                   "shrink-0 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide cursor-pointer",
-                  "bg-[#0689D8] text-white hover:bg-[#0579C0]",
+                  "text-white transition-opacity hover:opacity-90",
                 ].join(" ");
 
                 return (
@@ -101,6 +103,7 @@ function ReferencesWidgetPanel({
                       type="button"
                       onClick={() => openReferencePage(filename)}
                       className={visitClasses}
+                      style={{ backgroundColor: accentColor }}
                     >
                       Visit
                     </button>
@@ -433,6 +436,7 @@ export default function App() {
         <div className="min-h-[260px] md:min-h-0">
           <ReferencesWidgetPanel
             colorScheme={colorScheme}
+            accentColor={accentColor}
             activeThreadId={activeThreadId}
             isLoadingReferences={isLoadingReferences}
             referenceSources={referenceSources}
