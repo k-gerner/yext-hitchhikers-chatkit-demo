@@ -4,6 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 
 const CHATKIT_API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/chatkit";
 const CHATKIT_API_DOMAIN_KEY = import.meta.env.VITE_CHATKIT_API_DOMAIN_KEY ?? "domain_pk_localhost_dev";
+const SEARCH_API_URL = import.meta.env.VITE_SEARCH_API_URL || "http://localhost/v2/accounts/me/search/test";
+const SEARCH_API_KEY = import.meta.env.VITE_SEARCH_API_KEY || "";
+const SEARCH_API_VERSION_DATE = import.meta.env.VITE_SEARCH_API_VERSION_DATE || "20191101";
+const SEARCH_EXPERIENCE_KEY = import.meta.env.VITE_SEARCH_EXPERIENCE_KEY || "kyle-test";
+const SEARCH_VERSION = import.meta.env.VITE_SEARCH_VERSION || "STAGING";
+const CHATKIT_DEBUG = import.meta.env.VITE_CHATKIT_DEBUG === "true";
+const CHATKIT_DEBUG_STREAM_CHARS = 4000;
 
 type ReferenceSource = {
   key: string;
@@ -11,6 +18,297 @@ type ReferenceSource = {
   subtitle?: string;
   kind: "url" | "file" | "entity" | "unknown";
 };
+
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+
+type ChatKitProtocolRequest = {
+  type?: string;
+  params?: {
+    thread_id?: string;
+    threadId?: string;
+    input?: unknown;
+    message?: unknown;
+    item?: unknown;
+    items?: unknown;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+function createLocalThreadId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `local-thread-${crypto.randomUUID()}`;
+  }
+
+  return `local-thread-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+async function getRequestBodyText(input: RequestInfo | URL, init?: RequestInit) {
+  const body = init?.body ?? (input instanceof Request ? input.body : null);
+
+  if (!body) {
+    return null;
+  }
+
+  if (typeof body === "string") {
+    return body;
+  }
+
+  if (body instanceof URLSearchParams) {
+    return body.toString();
+  }
+
+  if (body instanceof Blob) {
+    return await body.text();
+  }
+
+  if (body instanceof FormData) {
+    return JSON.stringify(Object.fromEntries(body.entries()));
+  }
+
+  if (body instanceof ReadableStream) {
+    return await new Response(body).text();
+  }
+
+  return null;
+}
+
+function collectUserText(value: JsonValue, textParts: string[] = []) {
+  if (!value || typeof value !== "object") {
+    return textParts;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectUserText(item, textParts));
+    return textParts;
+  }
+
+  const role = typeof value.role === "string" ? value.role : null;
+  const type = typeof value.type === "string" ? value.type : null;
+  const text = typeof value.text === "string" ? value.text : null;
+  const content = value.content;
+
+  if ((role === "user" || type === "input_text") && text) {
+    textParts.push(text);
+  }
+
+  if (typeof content === "string" && role === "user") {
+    textParts.push(content);
+  } else {
+    collectUserText(content, textParts);
+  }
+
+  Object.entries(value).forEach(([key, item]) => {
+    if (key !== "content") {
+      collectUserText(item, textParts);
+    }
+  });
+
+  return textParts;
+}
+
+function extractLatestUserInput(bodyText: string | null) {
+  if (!bodyText) {
+    return "";
+  }
+
+  try {
+    const bodyJson = JSON.parse(bodyText) as JsonValue;
+    const textParts = collectUserText(bodyJson);
+    return textParts[textParts.length - 1]?.trim() ?? "";
+  } catch {
+    return bodyText;
+  }
+}
+
+function parseChatKitRequest(bodyText: string | null): ChatKitProtocolRequest | null {
+  if (!bodyText) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(bodyText) as ChatKitProtocolRequest;
+  } catch {
+    return null;
+  }
+}
+
+function getRequestThreadId(request: ChatKitProtocolRequest | null, fallbackThreadId: string) {
+  return request?.params?.thread_id ?? request?.params?.threadId ?? fallbackThreadId;
+}
+
+function jsonResponse(payload: unknown) {
+  return new Response(JSON.stringify(payload), {
+    headers: { "Content-Type": "application/json" },
+    status: 200,
+  });
+}
+
+function createSyntheticChatKitResponse(request: ChatKitProtocolRequest | null, threadId: string) {
+  const requestType = request?.type ?? "unknown";
+  const now = new Date().toISOString();
+  const thread = {
+    id: threadId,
+    title: "Search chat",
+    created_at: now,
+    updated_at: now,
+  };
+
+  if (requestType.includes("thread")) {
+    if (requestType.includes("list")) {
+      return jsonResponse({ data: [thread], has_more: false });
+    }
+
+    return jsonResponse({ data: thread });
+  }
+
+  if (requestType.includes("item") || requestType.includes("history")) {
+    return jsonResponse({ data: [], has_more: false });
+  }
+
+  return jsonResponse({ data: [], has_more: false });
+}
+
+function withDebugStreamLogging(response: Response) {
+  if (!response.body) {
+    return response;
+  }
+
+  const [debugStream, chatkitStream] = response.body.tee();
+  const debugResponse = new Response(debugStream);
+
+  void debugResponse.text().then((body) => {
+    console.log("ChatKit search stream body", body.slice(0, CHATKIT_DEBUG_STREAM_CHARS));
+  }).catch((error) => {
+    console.error("Failed to read ChatKit search stream debug body", error);
+  });
+
+  return new Response(chatkitStream, {
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText,
+  });
+}
+
+function chatKitErrorStreamResponse(threadId: string, message: string) {
+  const createdAt = new Date().toISOString();
+  const itemId = `message_error_${Date.now()}`;
+  const item = {
+    id: itemId,
+    thread_id: threadId,
+    type: "assistant_message",
+    created_at: createdAt,
+    content: [{ text: message, annotations: [] }],
+  };
+  const body = [
+    `event: thread.item.added\ndata: ${JSON.stringify({ item })}`,
+    `event: thread.item.done\ndata: ${JSON.stringify({ item })}`,
+    "",
+  ].join("\n\n");
+
+  return new Response(body, {
+    headers: { "Content-Type": "text/event-stream" },
+    status: 200,
+  });
+}
+
+async function searchEndpointFetch(input: RequestInfo | URL, init: RequestInit | undefined, localThreadId: string) {
+  const bodyText = await getRequestBodyText(input, init);
+  const chatKitRequest = parseChatKitRequest(bodyText);
+  const userInput = extractLatestUserInput(bodyText);
+  const threadId = getRequestThreadId(chatKitRequest, localThreadId);
+
+  if (CHATKIT_DEBUG) {
+    console.log("ChatKit protocol request", {
+      type: chatKitRequest?.type,
+      threadId,
+      input: userInput,
+      params: chatKitRequest?.params,
+    });
+  }
+
+  if (!userInput) {
+    if (CHATKIT_DEBUG) {
+      console.log("ChatKit synthetic response", {
+        type: chatKitRequest?.type,
+        threadId,
+      });
+    }
+
+    return createSyntheticChatKitResponse(chatKitRequest, threadId);
+  }
+
+  const searchUrl = new URL(SEARCH_API_URL);
+
+  if (SEARCH_API_KEY) {
+    searchUrl.searchParams.set("api_key", SEARCH_API_KEY);
+  }
+
+  searchUrl.searchParams.set("v", SEARCH_API_VERSION_DATE);
+  searchUrl.searchParams.set("input", userInput);
+  searchUrl.searchParams.set("thread_id", threadId);
+  searchUrl.searchParams.set("experienceKey", SEARCH_EXPERIENCE_KEY);
+  searchUrl.searchParams.set("version", SEARCH_VERSION);
+
+  const headers = new Headers(init?.headers);
+  headers.delete("content-type");
+  headers.delete("content-length");
+
+  if (CHATKIT_DEBUG) {
+    console.log("ChatKit search request", {
+      input: userInput,
+      url: searchUrl.toString(),
+    });
+  }
+
+  try {
+    const response = await fetch(searchUrl.toString(), {
+      headers,
+      signal: init?.signal,
+      credentials: init?.credentials,
+      mode: init?.mode,
+      cache: init?.cache,
+      redirect: init?.redirect,
+      referrer: init?.referrer,
+      referrerPolicy: init?.referrerPolicy,
+    });
+
+    if (CHATKIT_DEBUG) {
+      const contentType = response.headers.get("content-type");
+      const isEventStream = contentType?.includes("text/event-stream") ?? false;
+      const responseBody = isEventStream ? "<event stream>" : await response.clone().text();
+
+      console.log("ChatKit search response", {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        contentType,
+        body: responseBody.slice(0, 2000),
+      });
+
+      if (!response.ok) {
+        return chatKitErrorStreamResponse(threadId, "Sorry, the search endpoint returned an error. Please try again.");
+      }
+
+      if (isEventStream) {
+        return withDebugStreamLogging(response);
+      }
+    }
+
+    if (!response.ok) {
+      return chatKitErrorStreamResponse(threadId, "Sorry, the search endpoint returned an error. Please try again.");
+    }
+
+    return response;
+  } catch (error) {
+    if (CHATKIT_DEBUG) {
+      console.error("ChatKit search request failed", error);
+    }
+
+    throw error;
+  }
+}
 
 function openReferencePage(filename: string) {
   const safeFilename = filename.trim() || "unknown";
@@ -246,84 +544,22 @@ export default function App() {
   const [radius, setRadius] = useState<"pill" | "round" | "soft" | "sharp">("round");
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
   const [accentColor, setAccentColor] = useState("#0689D8");
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [activeThreadId, setActiveThreadId] = useState(() => createLocalThreadId());
   const [referenceSources, setReferenceSources] = useState<ReferenceSource[]>([]);
   const [isLoadingReferences, setIsLoadingReferences] = useState(false);
 
   const fetchLatestReferences = useCallback(async () => {
-    if (!activeThreadId) {
-      setReferenceSources([]);
-      return;
-    }
-
-    setIsLoadingReferences(true);
-    try {
-      const response = await fetch(CHATKIT_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "items.list",
-          params: {
-            thread_id: activeThreadId,
-            limit: 50,
-            order: "desc",
-          },
-        }),
-      });
-
-      const payload = await response.json();
-      const items = Array.isArray(payload?.data) ? payload.data : [];
-      const latestAssistant = items.find(
-        (item: any) =>
-          item?.type === "assistant_message" &&
-          Array.isArray(item?.content) &&
-          item.content.some((part: any) => Array.isArray(part?.annotations) && part.annotations.length > 0)
-      );
-
-      if (!latestAssistant) {
-        setReferenceSources([]);
-        return;
-      }
-
-      const rawSources = (latestAssistant.content ?? [])
-        .flatMap((part: any) => part?.annotations ?? [])
-        .map((annotation: any) => annotation?.source)
-        .filter(Boolean);
-
-      const unique = new Map<string, ReferenceSource>();
-      for (const source of rawSources) {
-        const kind = source?.type ?? "unknown";
-        const title = source?.title ?? "Untitled reference";
-        const subtitle =
-          kind === "url"
-            ? source?.url
-            : kind === "file"
-              ? source?.filename ?? source?.description
-              : kind === "entity"
-                ? source?.label ?? source?.id
-                : source?.description;
-        const key = `${kind}|${title}|${subtitle ?? ""}`;
-
-        if (!unique.has(key)) {
-          unique.set(key, { key, title, subtitle, kind });
-        }
-      }
-
-      setReferenceSources(Array.from(unique.values()));
-    } catch (error) {
-      console.error("Failed to load references", error);
-      setReferenceSources([]);
-    } finally {
-      setIsLoadingReferences(false);
-    }
-  }, [activeThreadId]);
+    setReferenceSources([]);
+    setIsLoadingReferences(false);
+  }, []);
 
   const chatkit = useChatKit({
     api: {
       url: CHATKIT_API_URL,
       domainKey: CHATKIT_API_DOMAIN_KEY,
+      fetch: (input, init) => searchEndpointFetch(input, init, activeThreadId),
     },
-    initialThread: activeThreadId,
+    initialThread: null,
     theme: {
       color: {
         accent: {
@@ -335,7 +571,7 @@ export default function App() {
       radius,
       density,
     },
-    onThreadChange: (e) => setActiveThreadId(e.threadId),
+    onThreadChange: (e) => setActiveThreadId(e.threadId ?? activeThreadId),
     onResponseEnd: () => {
       void fetchLatestReferences();
     },
@@ -345,23 +581,40 @@ export default function App() {
     onEffect: (e) => console.log("ChatKit effect:", e.name, e.data),
     startScreen: {
       greeting: "Welcome to Yext Hitchhikers support! How can we help today?",
+      // prompts: [
+      //   {
+      //     icon: "circle-question",
+      //     label: "What is Yext Search?",
+      //     prompt: "What is Yext Search?",
+      //   },
+      //   {
+      //     icon: "circle-question",
+      //     label: "Help me with a Search Frontend",
+      //     prompt: "How can I set up a new Search Frontend?",
+      //   },
+      //   {
+      //     icon: "circle-question",
+      //     label: "What are custom phrases?",
+      //     prompt: "What are custom phrases in Yext Search?",
+      //   },
+      // ],
       prompts: [
-        {
-          icon: "circle-question",
-          label: "What is Yext Search?",
-          prompt: "What is Yext Search?",
-        },
-        {
-          icon: "circle-question",
-          label: "Help me with a Search Frontend",
-          prompt: "How can I set up a new Search Frontend?",
-        },
-        {
-          icon: "circle-question",
-          label: "What are custom phrases?",
-          prompt: "What are custom phrases in Yext Search?",
-        },
-      ],
+      {
+        icon: 'circle-question',
+        label: 'How can I contact support?',
+        prompt: 'How can I contact support?'
+      },
+      {
+        icon: 'circle-question',
+        label: 'Good phones for gaming',
+        prompt: 'What are good phones for gaming?'
+      },
+      {
+        icon: 'circle-question',
+        label: 'What is airplane mode?',
+        prompt: 'What is airplane mode?'
+      },
+    ],
     },
     composer: {
       placeholder: "Type your message...",
