@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
+    "test": "rm -rf .test-dist && tsc -p tsconfig.test.json && node --test test/chatkitApi.test.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
