@@ -1,11 +1,11 @@
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
 import { CgClose, CgFileDocument, CgOptions } from "react-icons/cg";
 import { useCallback, useEffect, useState } from "react";
-import { searchEndpointFetch } from "./chatkitApi";
+import { resetLastKnownThreadId, searchEndpointFetch } from "./chatkitApi";
 
 const CHATKIT_API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/chatkit";
 const CHATKIT_API_DOMAIN_KEY = import.meta.env.VITE_CHATKIT_API_DOMAIN_KEY ?? "domain_pk_localhost_dev";
-const SEARCH_API_URL = import.meta.env.VITE_SEARCH_API_URL || "http://localhost/v2/accounts/me/search/test";
+const SEARCH_API_URL = import.meta.env.VITE_SEARCH_API_URL || "http://localhost/v2/accounts/me/search/conversation/query"; // "http://localhost/v2/accounts/me/search/test";
 const SEARCH_API_KEY = import.meta.env.VITE_SEARCH_API_KEY || "";
 const SEARCH_API_VERSION_DATE = import.meta.env.VITE_SEARCH_API_VERSION_DATE || "20191101";
 const SEARCH_EXPERIENCE_KEY = import.meta.env.VITE_SEARCH_EXPERIENCE_KEY || "kyle-test";
@@ -246,6 +246,8 @@ function SettingsDrawer({
   );
 }
 
+void ReferencesWidgetPanel;
+
 export default function App() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -256,6 +258,9 @@ export default function App() {
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [referenceSources, setReferenceSources] = useState<ReferenceSource[]>([]);
   const [isLoadingReferences, setIsLoadingReferences] = useState(false);
+
+  void referenceSources;
+  void isLoadingReferences;
 
   const fetchLatestReferences = useCallback(async () => {
     setReferenceSources([]);
@@ -287,7 +292,13 @@ export default function App() {
       radius,
       density,
     },
-    onThreadChange: (e) => setActiveThreadId(e.threadId ?? null),
+    onThreadChange: (e) => {
+      setActiveThreadId(e.threadId ?? null);
+
+      if (!e.threadId) {
+        resetLastKnownThreadId();
+      }
+    },
     onResponseEnd: () => {
       void fetchLatestReferences();
     },
@@ -296,7 +307,7 @@ export default function App() {
     onLog: (e) => console.log("ChatKit log:", e.name, e.data),
     onEffect: (e) => console.log("ChatKit effect:", e.name, e.data),
     startScreen: {
-      greeting: "Welcome to Yext Hitchhikers support! How can we help today?",
+      // greeting: "Welcome to Yext Hitchhikers support! How can we help today?",
       // prompts: [
       //   {
       //     icon: "circle-question",
@@ -314,6 +325,7 @@ export default function App() {
       //     prompt: "What are custom phrases in Yext Search?",
       //   },
       // ],
+      greeting: "Welcome to Samsung support! How can we help today?",
       prompts: [
       {
         icon: 'circle-question',
@@ -372,10 +384,11 @@ export default function App() {
   return (
     <div className={pageClasses}>
       <header className={headerClasses}>
-        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between px-4 py-3 md:px-6">
+        <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-4 py-3 md:px-5">
           <div>
             <div className={`text-sm font-semibold uppercase tracking-wide ${subtextClasses}`}>Support Assistant</div>
-            <h1 className="text-lg font-semibold">Yext Hitchhikers Help Center</h1>
+            {/* <h1 className="text-lg font-semibold">Yext Hitchhikers Help Center</h1> */}
+            <h1 className="text-lg font-semibold">Samsung Support Center</h1>
           </div>
           <div className="flex items-center gap-3">
             <div className={`hidden text-sm md:block ${subtextClasses}`}>Ask a question or choose a suggested prompt.</div>
@@ -391,7 +404,8 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto grid h-[calc(100vh-73px)] w-full max-w-[1400px] grid-cols-1 gap-4 p-4 md:grid-cols-[minmax(0,1fr)_360px] md:gap-6 md:p-6">
+      {/* <main className="mx-auto grid h-[calc(100vh-73px)] w-full max-w-[1180px] grid-cols-1 gap-4 p-4 md:grid-cols-[minmax(0,1fr)_360px] md:gap-6 md:p-6"> */}
+      <main className="mx-auto grid h-[calc(100vh-73px)] w-full max-w-[1180px] grid-cols-1 gap-4 p-4 md:gap-6 md:px-5 md:py-6">
         {chatkit?.control ? (
           <div className={panelClasses}>
             <ChatKit control={chatkit.control} className="h-full w-full" />
@@ -402,7 +416,7 @@ export default function App() {
           </div>
         )}
 
-        <div className="min-h-[260px] md:min-h-0">
+        {/* <div className="min-h-[260px] md:min-h-0">
           <ReferencesWidgetPanel
             colorScheme={colorScheme}
             accentColor={accentColor}
@@ -410,7 +424,7 @@ export default function App() {
             isLoadingReferences={isLoadingReferences}
             referenceSources={referenceSources}
           />
-        </div>
+        </div> */}
       </main>
 
       <SettingsDrawer
