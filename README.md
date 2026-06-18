@@ -2,6 +2,8 @@
 
 Demo app that pairs a Python ChatKit server with a React ChatKit UI.
 
+**NOTE** as of 6/18/26, this no longer uses the Python backend present in this repo. Instead, it uses the Yext conversational search query flow
+
 ## What’s In This Repo
 
 - **Backend**: FastAPI + `openai-chatkit` server implementation.
@@ -13,7 +15,7 @@ Demo app that pairs a Python ChatKit server with a React ChatKit UI.
 
 ```
 chat-kit-testing/
-├── backend/
+├── backend/                  # NO LONGER USED
 │   ├── app.py                # Main ChatKit server (FastAPI + Agents)
 │   ├── simple_store.py       # In-memory thread store
 │   ├── requirements.txt
@@ -59,10 +61,13 @@ Endpoints:
 
 1. `cd frontend`
 2. `npm install`
-3. `cp .env.example .env` (defaults are fine for local dev)
-4. `npm run dev`
+3. `cp .env.example .env` (copies example secrets into your .env)
+4. update `VITE_SEARCH_API_URL` to your non-local URL parth (if not running backend servers locally)
+5. update `VITE_SEARCH_EXPERIENCE_KEY` (experience key), `VITE_SEARCH_VERSION` (staging vs production), and `VITE_SEARCH_API_KEY` (search api key)
+6. `npm run dev` and it should be running at `http://localhost:5045/`
 
-The app runs at `http://localhost:3000`.
+
+The app runs at `http://localhost:5045`.
 
 ## Notes / Configuration
 
