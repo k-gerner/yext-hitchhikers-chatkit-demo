@@ -6,7 +6,7 @@ import type { Plugin } from 'postcss'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000
+    port: 5045
   },
   css: {
     postcss: {
