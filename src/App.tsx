@@ -1,5 +1,5 @@
 import { ChatKit, useChatKit } from "@openai/chatkit-react";
-import { CgClose, CgFileDocument, CgOptions } from "react-icons/cg";
+import { CgClose, CgOptions } from "react-icons/cg";
 import { useCallback, useEffect, useState } from "react";
 import { resetLastKnownThreadId, searchEndpointFetch } from "./chatkitApi";
 
@@ -18,112 +18,6 @@ type ReferenceSource = {
   subtitle?: string;
   kind: "url" | "file" | "entity" | "unknown";
 };
-
-function openReferencePage(filename: string) {
-  const safeFilename = filename.trim() || "unknown";
-  const url = `/#reference?filename=${encodeURIComponent(safeFilename)}`;
-  window.open(url, "_blank", "noopener,noreferrer");
-}
-
-function ReferencesWidgetPanel({
-  colorScheme,
-  accentColor,
-  activeThreadId,
-  isLoadingReferences,
-  referenceSources,
-}: {
-  colorScheme: "light" | "dark";
-  accentColor: string;
-  activeThreadId: string | null;
-  isLoadingReferences: boolean;
-  referenceSources: ReferenceSource[];
-}) {
-  const panelClasses = [
-    "h-full rounded-2xl border shadow-sm overflow-hidden",
-    colorScheme === "dark" ? "border-slate-800 bg-gray-900" : "border-gray-200 bg-white",
-  ].join(" ");
-
-  return (
-    <div className={panelClasses}>
-      <div className="h-full w-full overflow-y-auto p-4">
-        <div className="flex flex-col gap-3">
-          <div className={`text-lg font-semibold ${colorScheme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-            Sources
-          </div>
-          <div className={`text-sm ${colorScheme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-            {activeThreadId ? "From the latest assistant response" : "Start chatting to see references"}
-          </div>
-          <div className={`${colorScheme === "dark" ? "bg-slate-700" : "bg-gray-200"} h-px w-full`} />
-
-          {isLoadingReferences && (
-            <div className={`${colorScheme === "dark" ? "text-gray-200" : "text-gray-700"} text-md`}>
-              Loading references...
-            </div>
-          )}
-
-          {!isLoadingReferences && referenceSources.length === 0 && (
-            <div className={`${colorScheme === "dark" ? "text-gray-200" : "text-gray-700"} text-md`}>
-              No references found in the latest response.
-            </div>
-          )}
-
-          {!isLoadingReferences && referenceSources.length > 0 && (
-            <div className="flex flex-col gap-2">
-              {referenceSources.map((source) => {
-                const filename = source.kind === "file" && source.subtitle ? source.subtitle : source.title;
-                const cardClasses = [
-                  "flex items-center justify-between gap-3 rounded-xl px-3 py-2",
-                  "transition-colors",
-                  colorScheme === "dark"
-                    ? "bg-slate-700/60 hover:bg-slate-900/80 border border-slate-800"
-                    : "bg-slate-50 hover:bg-white border border-slate-200",
-                ].join(" ");
-                const visitClasses = [
-                  "shrink-0 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide cursor-pointer",
-                  "text-white transition-opacity hover:opacity-90",
-                ].join(" ");
-
-                return (
-                  <div key={source.key} className={cardClasses}>
-                    <div className="flex min-w-0 items-start gap-2">
-                      <div
-                        className={[
-                          "mt-0.5 flex h-7 w-7 items-center justify-center rounded-md border",
-                          colorScheme === "dark"
-                            ? "border-slate-700 bg-slate-800 text-slate-200"
-                            : "border-slate-200 bg-white text-slate-600",
-                        ].join(" ")}
-                        aria-hidden="true"
-                      >
-                        <CgFileDocument className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className={`text-md font-semibold ${colorScheme === "dark" ? "text-gray-100" : "text-gray-900"}`}>
-                          {source.title}
-                        </div>
-                        <div className={`text-sm ${colorScheme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                          {source.subtitle ?? source.kind.toUpperCase()}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openReferencePage(filename)}
-                      className={visitClasses}
-                      style={{ backgroundColor: accentColor }}
-                    >
-                      Visit
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function SettingsDrawer({
   isOpen,
@@ -180,7 +74,7 @@ function SettingsDrawer({
           <label className="block">
             <div className="mb-1 text-sm font-medium text-slate-700">Accent color</div>
             <div className="mb-2 flex flex-wrap gap-2">
-              {["#0689D8", "#0EA5A0", "#4F46E5", "#E11D48", "#D97706"].map((color) => (
+              {["#0689D8", "#0EA5A0", "#4F46E5", "#E11D48", "#D97706", "#000000"].map((color) => (
                 <button
                   key={color}
                   type="button"
@@ -246,15 +140,13 @@ function SettingsDrawer({
   );
 }
 
-void ReferencesWidgetPanel;
-
 export default function App() {
   const [isMounted, setIsMounted] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [colorScheme, setColorScheme] = useState<"light" | "dark">("light");
   const [radius, setRadius] = useState<"pill" | "round" | "soft" | "sharp">("round");
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
-  const [accentColor, setAccentColor] = useState("#0689D8");
+  const [accentColor, setAccentColor] = useState("#000000");
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [referenceSources, setReferenceSources] = useState<ReferenceSource[]>([]);
   const [isLoadingReferences, setIsLoadingReferences] = useState(false);
@@ -307,42 +199,24 @@ export default function App() {
     onLog: (e) => console.log("ChatKit log:", e.name, e.data),
     onEffect: (e) => console.log("ChatKit effect:", e.name, e.data),
     startScreen: {
-      // greeting: "Welcome to Yext Hitchhikers support! How can we help today?",
-      // prompts: [
-      //   {
-      //     icon: "circle-question",
-      //     label: "What is Yext Search?",
-      //     prompt: "What is Yext Search?",
-      //   },
-      //   {
-      //     icon: "circle-question",
-      //     label: "Help me with a Search Frontend",
-      //     prompt: "How can I set up a new Search Frontend?",
-      //   },
-      //   {
-      //     icon: "circle-question",
-      //     label: "What are custom phrases?",
-      //     prompt: "What are custom phrases in Yext Search?",
-      //   },
-      // ],
-      greeting: "Welcome to Samsung support! How can we help today?",
+      greeting: "Welcome to Yext Hitchhikers support! How can we help today?",
       prompts: [
-      {
-        icon: 'circle-question',
-        label: 'How can I contact support?',
-        prompt: 'How can I contact support?'
-      },
-      {
-        icon: 'circle-question',
-        label: 'Good phones for gaming',
-        prompt: 'What are good phones for gaming?'
-      },
-      {
-        icon: 'circle-question',
-        label: 'What is airplane mode?',
-        prompt: 'What is airplane mode?'
-      },
-    ],
+        {
+          icon: "circle-question",
+          label: "What is Yext Scout?",
+          prompt: "What is Yext Scout?",
+        },
+        {
+          icon: "circle-question",
+          label: "Help me with a Search Frontend",
+          prompt: "How can I set up a new Search Frontend in React?",
+        },
+        {
+          icon: "circle-question",
+          label: "What are custom phrases?",
+          prompt: "What are custom phrases in Yext Search?",
+        },
+      ],
     },
     composer: {
       placeholder: "Type your message...",
@@ -387,8 +261,7 @@ export default function App() {
         <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between px-4 py-3 md:px-5">
           <div>
             <div className={`text-sm font-semibold uppercase tracking-wide ${subtextClasses}`}>Support Assistant</div>
-            {/* <h1 className="text-lg font-semibold">Yext Hitchhikers Help Center</h1> */}
-            <h1 className="text-lg font-semibold">Samsung Support Center</h1>
+            <h1 className="text-lg font-semibold">Yext Hitchhikers Help Center</h1>
           </div>
           <div className="flex items-center gap-3">
             <div className={`hidden text-sm md:block ${subtextClasses}`}>Ask a question or choose a suggested prompt.</div>
@@ -415,16 +288,6 @@ export default function App() {
             Initializing ChatKit...
           </div>
         )}
-
-        {/* <div className="min-h-[260px] md:min-h-0">
-          <ReferencesWidgetPanel
-            colorScheme={colorScheme}
-            accentColor={accentColor}
-            activeThreadId={activeThreadId}
-            isLoadingReferences={isLoadingReferences}
-            referenceSources={referenceSources}
-          />
-        </div> */}
       </main>
 
       <SettingsDrawer

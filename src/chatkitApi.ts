@@ -504,6 +504,7 @@ export async function searchEndpointFetch(
     responseOptions: {
       includeAnnotations: boolean;
     };
+    temp_promptAddendum?: string; // temporary
   } = {
     input: userInput,
     client: {
@@ -512,6 +513,7 @@ export async function searchEndpointFetch(
     responseOptions: {
       includeAnnotations: true,
     },
+    // temp_promptAddendum: "You are a Samsung support bot from 18th century England. Answer the support questions while talking in the corresponding old English accent."
   };
 
   if (threadId) {
