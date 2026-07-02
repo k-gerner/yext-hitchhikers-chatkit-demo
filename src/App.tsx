@@ -3,7 +3,6 @@ import { CgClose, CgOptions } from "react-icons/cg";
 import { useCallback, useEffect, useState } from "react";
 import { resetLastKnownThreadId, searchEndpointFetch } from "./chatkitApi";
 
-const CHATKIT_API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/chatkit";
 const CHATKIT_API_DOMAIN_KEY = import.meta.env.VITE_CHATKIT_API_DOMAIN_KEY ?? "domain_pk_localhost_dev";
 const SEARCH_API_URL = import.meta.env.VITE_SEARCH_API_URL || "http://localhost/v2/accounts/me/search/conversation/query"; // "http://localhost/v2/accounts/me/search/test";
 const SEARCH_API_KEY = import.meta.env.VITE_SEARCH_API_KEY || "";
@@ -161,7 +160,7 @@ export default function App() {
 
   const chatkit = useChatKit({
     api: {
-      url: CHATKIT_API_URL,
+      url: "",
       domainKey: CHATKIT_API_DOMAIN_KEY,
       fetch: (input, init) => searchEndpointFetch(input, init, activeThreadId, {
         searchApiUrl: SEARCH_API_URL,
